@@ -1,0 +1,67 @@
+# Argo CD Helm values for the brakebills-talos bootstrap.
+#
+# This file is what the `./gradlew argoBootstrap` task feeds into
+# `helm template` to render the initial install. Once Argo CD is running and
+# self-managing from the GitOps repo, keep a copy of this file (or a superset)
+# at `clusters/brakebills/argocd/values.yaml` in brakebills-gitops so the
+# child Application renders an identical output. Drift between the two will
+# cause Argo CD to reconcile itself on every sync — keep them in sync.
+#
+# Homelab-focused: no real TLS, modest resource footprint, no ingress (use the
+# argoPortForward task for UI access until Traefik/nginx is wired).
+
+# Flatten the default `argo-cd-argocd-<component>` naming to `argocd-<component>`.
+# Must match whatever is set in brakebills-gitops values.yaml when the child
+# Application takes over self-management, or Argo CD will see a pile of drift.
+fullnameOverride: argocd
+
+global:
+  domain: argocd.brakebills.lan  # cosmetic — not used until an ingress exists
+
+configs:
+  params:
+    # Disable TLS on argocd-server so `kubectl port-forward` works without
+    # self-signed cert hassle. Re-enable once a real ingress is in front.
+    server.insecure: true
+
+  cm:
+    # Kubernetes version the cluster reports so ArgoCD stops warning.
+    kubernetes.kind.apiserver.minVersion: "1.30"
+    # Allow diffing of generated manifests produced by kustomize/helm apps.
+    application.instanceLabelKey: argocd.argoproj.io/instance
+
+# -----------------------------------------------------------------------------
+# Resource requests — tuned for 4x Raspberry Pi 5 (8GB each). Defaults in the
+# chart are sized for a beefy x86 node and overprovision on Pis. Numbers below
+# are conservative; bump them when you observe real pressure.
+# -----------------------------------------------------------------------------
+controller:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { memory: 1Gi }
+
+repoServer:
+  resources:
+    requests: { cpu: 50m,  memory: 128Mi }
+    limits:   { memory: 512Mi }
+
+server:
+  resources:
+    requests: { cpu: 50m,  memory: 128Mi }
+    limits:   { memory: 256Mi }
+
+applicationSet:
+  resources:
+    requests: { cpu: 25m,  memory: 64Mi }
+    limits:   { memory: 256Mi }
+
+notifications:
+  enabled: false  # flip on when you wire Discord/Slack/etc.
+
+dex:
+  enabled: false  # flip on when you wire OIDC (Tailscale, Authentik, etc.)
+
+redis:
+  resources:
+    requests: { cpu: 25m,  memory: 64Mi }
+    limits:   { memory: 128Mi }
