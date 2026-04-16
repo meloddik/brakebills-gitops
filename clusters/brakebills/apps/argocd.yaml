@@ -1,0 +1,64 @@
+# Self-managing Argo CD.
+#
+# On first reconcile, Argo CD is already running in the cluster (installed
+# by brakebills-talos's `argoBootstrap` task from the same chart + values).
+# Applying this Application hands ownership of the install to Argo CD itself,
+# and every subsequent upgrade or values change happens via a commit here —
+# not by re-running argoBootstrap.
+#
+# This is a multi-source Application:
+#   1. The upstream argo-helm chart supplies the templates.
+#   2. This repo (aliased as `$values` via `ref: values`) supplies the
+#      values.yaml file.
+#
+# The chart version and values MUST match `gitops-bootstrap/argocd/chart.env`
+# and `gitops-bootstrap/argocd/values.yaml` in brakebills-talos until first
+# successful reconcile. After that, this file + clusters/brakebills/argocd/
+# are the source of truth — bump `targetRevision` here, commit, Argo CD
+# self-upgrades.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  # Sync as early as possible — argocd must be healthy before any other app
+  # can reconcile, so keep its wave ahead of everything else.
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    # The chart itself.
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 9.5.0   # appVersion v3.3.6 — keep in sync with brakebills-talos
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/clusters/brakebills/argocd/values.yaml
+
+    # This repo as a value source (ref: values makes it addressable above).
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Argo CD's ApplicationSet CRD is too large for client-side apply's
+      # annotation-size limit. Server-side apply is mandatory.
+      - ServerSideApply=true
+      # The argocd namespace already exists (created by argoBootstrap).
+      - CreateNamespace=false
+      # Don't thrash fully-synced objects every reconcile.
+      - ApplyOutOfSyncOnly=true
