@@ -1,0 +1,56 @@
+# Cilium Helm values for the brakebills-talos cluster.
+#
+# Cilium replaces both Flannel (CNI) and kube-proxy (service routing).
+# Talos machine config sets cluster.network.cni.name=none and
+# cluster.proxy.disabled=true — Cilium owns all pod networking.
+
+# kube-proxy replacement via eBPF.
+kubeProxyReplacement: true
+
+# Talos mounts the CGROUPv2 filesystem here.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Use the kube-apiserver endpoint (VIP) for Cilium agent -> apiserver.
+k8sServiceHost: 192.168.5.10
+k8sServicePort: 6443
+
+# IPAM — keep the same pod CIDR as the Talos default (Flannel used this).
+ipam:
+  mode: kubernetes
+
+# L2 announcements — Cilium floats LoadBalancer Service IPs via ARP on
+# the LAN, similar to MetalLB L2 mode. Lets you expose services on
+# 192.168.5.x without an external load balancer.
+l2announcements:
+  enabled: true
+
+# Hubble — network flow visibility + service map UI.
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+# Security defaults.
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE

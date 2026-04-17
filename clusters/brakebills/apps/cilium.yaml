@@ -1,0 +1,45 @@
+# Cilium CNI — managed via the upstream Helm chart.
+#
+# Replaces Flannel (CNI) and kube-proxy (service routing via eBPF).
+# Talos machine config disables both: cluster.network.cni.name=none,
+# cluster.proxy.disabled=true.
+#
+# Sync wave -30 ensures Cilium is healthy before argocd (-20) and
+# everything else (0+). Without networking, nothing can schedule.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://helm.cilium.io
+      chart: cilium
+      targetRevision: 1.19.3
+      helm:
+        releaseName: cilium
+        valueFiles:
+          - $values/clusters/brakebills/cilium/values.yaml
+
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=false
