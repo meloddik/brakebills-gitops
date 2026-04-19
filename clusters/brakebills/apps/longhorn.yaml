@@ -22,8 +22,15 @@ spec:
       targetRevision: 1.11.1
       helm:
         releaseName: longhorn
+        skipCrds: false
         valueFiles:
           - $values/clusters/brakebills/longhorn/values.yaml
+        # Skip Helm hooks — Longhorn's pre-upgrade hook requires the
+        # ServiceAccount from the chart, which hasn't been created yet
+        # on initial install. Argo CD manages lifecycle, not Helm hooks.
+        parameters:
+          - name: preUpgradeChecker.jobEnabled
+            value: "false"
 
     - repoURL: https://github.com/meloddik/brakebills-gitops.git
       targetRevision: main
