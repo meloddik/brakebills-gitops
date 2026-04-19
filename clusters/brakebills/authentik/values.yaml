@@ -86,7 +86,14 @@ worker:
       configMap:
         name: authentik-blueprints-argocd
         optional: true
+    - name: blueprints-vault
+      configMap:
+        name: authentik-blueprints-vault
+        optional: true
   volumeMounts:
     - name: blueprints-argocd
       mountPath: /blueprints/custom/argocd
+      readOnly: true
+    - name: blueprints-vault
+      mountPath: /blueprints/custom/vault
       readOnly: true
