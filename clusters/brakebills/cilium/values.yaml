@@ -27,6 +27,13 @@ ipam:
 l2announcements:
   enabled: true
 
+# Cilium Ingress Controller — no need for a separate ingress-nginx or Traefik.
+# Creates a LoadBalancer Service that L2 announcements make reachable on the LAN.
+ingressController:
+  enabled: true
+  default: true
+  loadbalancerMode: shared
+
 # Hubble — network flow visibility + service map UI.
 hubble:
   enabled: true

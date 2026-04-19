@@ -32,4 +32,4 @@ sources:
 # Cloudflare-specific: don't proxy (grey cloud, DNS-only). Proxying would
 # route traffic through Cloudflare's edge, which breaks for LAN IPs.
 extraArgs:
-  - --cloudflare-proxied=false
+  cloudflare-proxied: "false"

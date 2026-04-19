@@ -1,0 +1,29 @@
+# Cilium L2 announcement policy + LoadBalancer IP pool.
+# Applied after the Cilium chart (-30) registers the CRDs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-29"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/meloddik/brakebills-gitops.git
+    targetRevision: main
+    path: clusters/brakebills/cilium
+    directory:
+      include: '{l2-policy.yaml,ip-pool.yaml}'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

@@ -1,0 +1,11 @@
+# L2 announcement policy — tells Cilium to respond to ARP requests for
+# LoadBalancer IPs on all interfaces. Required for L2 mode to work.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: default
+spec:
+  interfaces:
+    - ^enu.*
+  externalIPs: true
+  loadBalancerIPs: true

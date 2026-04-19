@@ -1,0 +1,29 @@
+# Argo CD Ingress — exposes the UI at argocd.brakebills.io with TLS.
+# Sync wave -19: after argocd (-20) is running.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-19"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/meloddik/brakebills-gitops.git
+    targetRevision: main
+    path: clusters/brakebills/argocd
+    directory:
+      include: 'ingress.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
