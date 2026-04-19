@@ -5,17 +5,13 @@
 # existingSecret — no passwords in git.
 
 authentik:
-  # Use the TF-generated secret for the secret key.
+  # Use the TF-generated secret for the secret key + postgres password.
   existingSecret:
     secretName: authentik-secrets
   postgresql:
-    host: '{{ .Release.Name }}-postgresql'
+    host: authentik-postgresql
     name: authentik
     user: authentik
-    password:
-      secretKeyRef:
-        name: authentik-secrets
-        key: AUTHENTIK_POSTGRESQL__PASSWORD
   error_reporting:
     enabled: false
 
