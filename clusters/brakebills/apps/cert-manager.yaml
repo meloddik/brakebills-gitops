@@ -1,0 +1,42 @@
+# cert-manager — TLS certificate automation via Let's Encrypt.
+#
+# Uses Cloudflare DNS-01 solver for brakebills.io. Requires the
+# cloudflare-api-token Secret in the cert-manager namespace.
+# Sync wave -25: after Cilium (-30), before argocd (-20).
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-25"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.20.2
+      helm:
+        releaseName: cert-manager
+        valueFiles:
+          - $values/clusters/brakebills/cert-manager/values.yaml
+
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true

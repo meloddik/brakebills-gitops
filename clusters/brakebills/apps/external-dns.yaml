@@ -1,0 +1,42 @@
+# external-dns — automatic Cloudflare DNS record management.
+#
+# Watches Ingress resources and creates/updates A records for
+# brakebills.io. Requires the cloudflare-api-token Secret in the
+# external-dns namespace.
+# Sync wave -23: after cert-manager + ClusterIssuer.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-23"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/external-dns
+      chart: external-dns
+      targetRevision: 1.20.0
+      helm:
+        releaseName: external-dns
+        valueFiles:
+          - $values/clusters/brakebills/external-dns/values.yaml
+
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,33 @@
+# ClusterIssuer for Let's Encrypt (staging).
+#
+# Separate Application so the ClusterIssuer CRD is applied from git and
+# managed by Argo CD. Sync wave -24: after cert-manager (-25) has
+# registered the CRD.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-issuer
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-24"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/meloddik/brakebills-gitops.git
+    targetRevision: main
+    path: clusters/brakebills/cert-manager
+    directory:
+      include: 'cluster-issuer.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

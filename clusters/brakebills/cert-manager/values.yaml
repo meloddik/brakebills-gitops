@@ -1,0 +1,8 @@
+# cert-manager Helm values for brakebills-talos.
+
+# Install CRDs as part of the Helm release so Argo CD manages them.
+crds:
+  enabled: true
+
+# DNS-01 solver needs permission to create TXT records.
+# The Cloudflare API token is in a Secret created by create-secret.sh.

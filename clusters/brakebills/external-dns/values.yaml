@@ -1,0 +1,35 @@
+# external-dns Helm values for brakebills-talos.
+#
+# Watches Ingress resources and creates/updates/deletes Cloudflare DNS
+# A records automatically. Uses the same Cloudflare API token as cert-manager.
+
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
+
+# Only manage records under brakebills.io.
+domainFilters:
+  - brakebills.io
+
+# txt-owner-id prevents external-dns from touching records it didn't create.
+txtOwnerId: brakebills-talos
+
+# Don't delete DNS records when the Ingress is removed — safer for a homelab.
+# Change to "sync" once you trust the setup.
+policy: upsert-only
+
+# Watch these resource types for hostnames to create records for.
+sources:
+  - ingress
+  - service
+
+# Cloudflare-specific: don't proxy (grey cloud, DNS-only). Proxying would
+# route traffic through Cloudflare's edge, which breaks for LAN IPs.
+extraArgs:
+  - --cloudflare-proxied=false
