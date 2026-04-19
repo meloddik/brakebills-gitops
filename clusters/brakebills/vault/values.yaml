@@ -1,0 +1,85 @@
+# HashiCorp Vault for brakebills-talos.
+#
+# HA mode with 1 replica (can scale to 3 later), Raft storage on Longhorn.
+# AWS KMS auto-unseal via the vault-aws-kms Secret (created by Gradle task).
+# Ingress at vault.brakebills.io with Let's Encrypt production cert.
+
+global:
+  enabled: true
+  # Cilium ingress terminates TLS; pods speak HTTP internally.
+  tlsDisable: true
+
+injector:
+  # Agent injector — skip for now. Enable if you want automatic secret
+  # injection into pods via annotations.
+  enabled: false
+
+server:
+  # AWS KMS credentials for auto-unseal. Read from the vault-aws-kms
+  # Secret created by: ./gradlew vaultAwsKmsSecret -PawsAccessKeyId=... -PawsSecretAccessKey=...
+  extraSecretEnvironmentVars:
+    - envName: AWS_ACCESS_KEY_ID
+      secretName: vault-aws-kms
+      secretKey: access-key-id
+    - envName: AWS_SECRET_ACCESS_KEY
+      secretName: vault-aws-kms
+      secretKey: secret-access-key
+
+  # Skip mlock — avoids needing CAP_IPC_LOCK / privileged containers.
+  # Homelab storage isn't encrypted at rest anyway, so mlock doesn't help.
+  extraEnvironmentVars:
+    VAULT_DISABLE_MLOCK: "true"
+
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+  # Raft storage on Longhorn. 10Gi per replica.
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: longhorn
+    accessMode: ReadWriteOnce
+
+  # HA with 1 replica — scale to 3 later for real HA.
+  ha:
+    enabled: true
+    replicas: 1
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        seal "awskms" {
+          region     = "us-east-1"
+          kms_key_id = "448a045b-ea7d-41ff-964b-864e1c3c4b31"
+        }
+
+        service_registration "kubernetes" {}
+
+  ingress:
+    enabled: true
+    ingressClassName: cilium
+    hosts:
+      - host: vault.brakebills.io
+    tls:
+      - secretName: vault-tls
+        hosts:
+          - vault.brakebills.io
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-production
+
+ui:
+  enabled: true
+  serviceType: ClusterIP

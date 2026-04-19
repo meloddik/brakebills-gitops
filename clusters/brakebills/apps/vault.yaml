@@ -1,0 +1,45 @@
+# HashiCorp Vault — secrets management with AWS KMS auto-unseal.
+#
+# On first deploy, Vault starts uninitialized. Initialize with:
+#   kubectl exec vault-0 -n vault -- vault operator init
+# Save the root token + recovery keys in your password manager.
+# With AWS KMS auto-unseal, the pod unseals itself on every restart;
+# recovery keys are only needed for break-glass operations.
+#
+# Sync wave -8: after Authentik (-10), before regular workloads.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://helm.releases.hashicorp.com
+      chart: vault
+      targetRevision: 0.32.0
+      helm:
+        releaseName: vault
+        valueFiles:
+          - $values/clusters/brakebills/vault/values.yaml
+
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
