@@ -1,10 +1,11 @@
 # IP pool for LoadBalancer Services. Cilium assigns IPs from this range
 # and announces them via L2 (ARP) on the LAN.
-# Using a small range on the same subnet as the nodes.
+# Range 192.168.5.11-49: above the VIP (.10), below DHCP (.50+).
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
   name: default
 spec:
   blocks:
-    - cidr: 192.168.5.200/28
+    - start: 192.168.5.11
+      stop: 192.168.5.49
