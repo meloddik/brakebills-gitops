@@ -47,6 +47,8 @@ ingress:
   enabled: true
   ingressClassName: cilium
   host: longhorn.brakebills.io
+  path: /
+  pathType: Prefix
   tls: true
   tlsSecret: longhorn-tls
   annotations:
