@@ -78,3 +78,15 @@ worker:
   resources:
     requests: { cpu: 50m, memory: 256Mi }
     limits: { memory: 1Gi }
+  # Mount blueprint ConfigMaps at /blueprints/custom/ so the worker
+  # discovers + applies them on startup. The ConfigMaps are created
+  # by the authentik-blueprints Argo CD Application.
+  volumes:
+    - name: blueprints-argocd
+      configMap:
+        name: authentik-blueprints-argocd
+        optional: true
+  volumeMounts:
+    - name: blueprints-argocd
+      mountPath: /blueprints/custom/argocd
+      readOnly: true

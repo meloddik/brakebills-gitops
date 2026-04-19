@@ -29,6 +29,28 @@ configs:
     kubernetes.kind.apiserver.minVersion: "1.30"
     # Allow diffing of generated manifests produced by kustomize/helm apps.
     application.instanceLabelKey: argocd.argoproj.io/instance
+    # Public URL used as redirect base for OIDC callbacks.
+    url: https://argocd.brakebills.io
+    # OIDC via Authentik. Client secret lives in the argocd-oidc Secret
+    # (created by Terraform) and is referenced via $ syntax.
+    oidc.config: |
+      name: Authentik
+      issuer: https://auth.brakebills.io/application/o/argocd/
+      clientID: argocd
+      clientSecret: $argocd-oidc:client-secret
+      requestedScopes:
+        - openid
+        - profile
+        - email
+      requestedIDTokenClaims:
+        groups:
+          essential: true
+
+  # RBAC: map the authentik Admins group to admin role.
+  rbac:
+    policy.default: role:readonly
+    policy.csv: |
+      g, authentik Admins, role:admin
 
 # -----------------------------------------------------------------------------
 # Resource requests — tuned for 4x Raspberry Pi 5 (8GB each). Defaults in the

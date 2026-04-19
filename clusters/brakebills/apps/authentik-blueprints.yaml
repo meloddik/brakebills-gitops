@@ -1,0 +1,30 @@
+# Authentik blueprints as ConfigMaps.
+# Mounted into the worker pod via values.yaml; worker applies on startup.
+# Sync wave -9: right after Authentik itself (-10).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: authentik-blueprints
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/meloddik/brakebills-gitops.git
+    targetRevision: main
+    path: clusters/brakebills/authentik
+    directory:
+      include: 'blueprint-*.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: authentik
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
