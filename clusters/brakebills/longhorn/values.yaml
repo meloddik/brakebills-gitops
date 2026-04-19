@@ -14,9 +14,11 @@ namespaceOverride: longhorn-system
 defaultSettings:
   defaultReplicaCount: "2"
 
-  # Talos-specific: the data path must be under a writable mount.
-  # /var/lib/longhorn is on the EPHEMERAL partition by default.
-  defaultDataPath: /var/lib/longhorn
+  # Talos mounts the UserVolume "persistent-data" at /var/mnt/persistent-data.
+  # This is a dedicated ~945GB NVMe partition on each node, separate from
+  # the 50GiB EPHEMERAL partition. Much better than the default /var/lib/longhorn
+  # which would land on EPHEMERAL and fill up fast.
+  defaultDataPath: /var/mnt/persistent-data
 
   # Allow scheduling on control plane nodes (all 3 CPs run workloads).
   allowNodeDrainWithLastHealthyReplica: true
