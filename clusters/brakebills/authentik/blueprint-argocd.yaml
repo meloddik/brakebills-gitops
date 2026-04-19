@@ -20,6 +20,7 @@ data:
         blueprints.goauthentik.io/description: Argo CD OIDC provider + application
     entries:
       - model: authentik_providers_oauth2.oauth2provider
+        id: argocd-provider
         identifiers:
           name: argocd
         attrs:
@@ -39,12 +40,11 @@ data:
               url: https://argocd.brakebills.io/auth/callback
           sub_mode: hashed_user_id
           include_claims_in_id_token: true
-          id: argocd
       - model: authentik_core.application
         identifiers:
           slug: argocd
         attrs:
           name: Argo CD
           slug: argocd
-          provider: !KeyOf argocd
+          provider: !KeyOf argocd-provider
           meta_launch_url: https://argocd.brakebills.io
