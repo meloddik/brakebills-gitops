@@ -36,6 +36,16 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kube-system
 
+  # Cilium's Helm chart generates TLS secrets (CA, Hubble certs) with random
+  # values on every render. Without this, Argo CD sees drift on every sync
+  # and re-applies endlessly. The secrets are labeled
+  # cilium.io/helm-template-non-idempotent: true by the chart itself.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+
   syncPolicy:
     automated:
       prune: true
@@ -43,3 +53,4 @@ spec:
     syncOptions:
       - ServerSideApply=true
       - CreateNamespace=false
+      - RespectIgnoreDifferences=true
