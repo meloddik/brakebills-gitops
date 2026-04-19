@@ -1,7 +1,7 @@
 # HashiCorp Vault for brakebills-talos.
 #
-# HA mode with 1 replica (can scale to 3 later), Raft storage on Longhorn.
-# AWS KMS auto-unseal via the vault-aws-kms Secret (created by Gradle task).
+# HA with 3 replicas and Raft storage on Longhorn. AWS KMS auto-unseal
+# via the vault-aws-kms Secret (created by Gradle task).
 # Ingress at vault.brakebills.io with Let's Encrypt production cert.
 
 global:
@@ -41,10 +41,22 @@ server:
     storageClass: longhorn
     accessMode: ReadWriteOnce
 
-  # HA with 1 replica — scale to 3 later for real HA.
+  # Anti-affinity: never schedule two Vault pods on the same node, so a
+  # node failure never takes down more than one replica at a time.
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ template "vault.name" . }}
+              app.kubernetes.io/instance: "{{ .Release.Name }}"
+              component: server
+          topologyKey: kubernetes.io/hostname
+
+  # HA with 3 replicas — Raft quorum = 2, tolerates 1 node failure.
   ha:
     enabled: true
-    replicas: 1
+    replicas: 3
     raft:
       enabled: true
       setNodeId: true
@@ -59,6 +71,16 @@ server:
 
         storage "raft" {
           path = "/vault/data"
+
+          retry_join {
+            leader_api_addr = "http://vault-0.vault-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://vault-1.vault-internal:8200"
+          }
+          retry_join {
+            leader_api_addr = "http://vault-2.vault-internal:8200"
+          }
         }
 
         seal "awskms" {
