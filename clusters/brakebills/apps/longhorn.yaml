@@ -1,0 +1,41 @@
+# Longhorn — distributed block storage.
+#
+# Provides PersistentVolumes backed by NVMe across all nodes.
+# Required by Authentik (PostgreSQL) and any stateful workload.
+# Sync wave -22: after external-dns (-23), before workloads.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-22"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://charts.longhorn.io
+      chart: longhorn
+      targetRevision: 1.11.1
+      helm:
+        releaseName: longhorn
+        valueFiles:
+          - $values/clusters/brakebills/longhorn/values.yaml
+
+    - repoURL: https://github.com/meloddik/brakebills-gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

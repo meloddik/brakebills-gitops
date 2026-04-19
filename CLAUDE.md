@@ -45,6 +45,7 @@ Lower numbers sync first. Current assignments:
 | -23 | external-dns |
 | -20 | argocd (self-managing) |
 | -19 | argocd-ingress |
+| -22 | Longhorn (distributed storage) |
 | 0+ | future workloads |
 
 ## Git workflow — strict gitflow
