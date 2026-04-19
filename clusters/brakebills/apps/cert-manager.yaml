@@ -39,4 +39,5 @@ spec:
       selfHeal: true
     syncOptions:
       - ServerSideApply=true
-      - CreateNamespace=true
+      # Namespace is created by Terraform with baseline PodSecurity labels.
+      - CreateNamespace=false
