@@ -4,6 +4,10 @@
 # on each node via the NVMe disk. Longhorn uses the default data path
 # (/var/lib/longhorn) which Talos maps to the ephemeral partition.
 
+# Longhorn requires privileged containers + hostPath volumes. The
+# longhorn-system namespace must have PodSecurity set to privileged.
+namespaceOverride: longhorn-system
+
 # Default replicas — 2 gives redundancy without saturating all 4 nodes.
 # For a 4-node cluster, 3 replicas means every volume is on 3/4 nodes
 # which leaves little room for rebuild. 2 is the sweet spot.
