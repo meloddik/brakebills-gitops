@@ -1,6 +1,6 @@
 # Ingress for the Argo CD web UI.
 #
-# cert-manager issues a Let's Encrypt staging cert via DNS-01.
+# cert-manager issues a Let's Encrypt production cert via DNS-01.
 # external-dns creates argocd.brakebills.io -> LoadBalancer IP in Cloudflare.
 # Cilium ingress controller processes the Ingress.
 apiVersion: networking.k8s.io/v1
@@ -9,7 +9,7 @@ metadata:
   name: argocd-server
   namespace: argocd
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: letsencrypt-production
 spec:
   ingressClassName: cilium
   tls:
