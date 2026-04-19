@@ -7,11 +7,6 @@
 # kube-proxy replacement via eBPF.
 kubeProxyReplacement: true
 
-# Explicitly tell Cilium which host devices to attach eBPF programs to.
-# Without this, LB traffic arriving on enu1 may not enter the dataplane.
-devices:
-  - enu1
-
 # Talos mounts the CGROUPv2 filesystem here.
 cgroup:
   autoMount:

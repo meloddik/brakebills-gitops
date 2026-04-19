@@ -93,3 +93,4 @@ git checkout develop && git merge main && git push origin develop
 - All commit messages use **Conventional Commits** (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`).
 - Tags use **semver** (`vX.Y.Z`).
 - **Argo CD syncs from `main` only.** Nothing on `develop` or feature branches affects the cluster.
+- **Revert changes that don't work.** If a change is made while debugging and it doesn't solve the problem, revert it before moving on. Don't leave speculative or ineffective changes — they obscure the real fix.
