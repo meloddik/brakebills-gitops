@@ -68,6 +68,10 @@ repoServer:
     limits:   { memory: 512Mi }
 
 server:
+  # HA: two replicas so a stuck settings/OIDC cache on one pod doesn't
+  # take down SSO. Redis (already deployed) backs session state, so
+  # replicas share sessions. Keep this aligned with the bootstrap repo.
+  replicas: 2
   resources:
     requests: { cpu: 50m,  memory: 128Mi }
     limits:   { memory: 256Mi }
