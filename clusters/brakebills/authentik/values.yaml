@@ -54,7 +54,10 @@ redis:
       limits: { memory: 128Mi }
 
 server:
-  replicas: 1
+  # HA: two replicas so one-pod failure doesn't take down OIDC for every
+  # SSO-integrated service (Argo CD, Vault, future apps). Session state
+  # lives in Redis so replicas share cleanly.
+  replicas: 2
   resources:
     requests: { cpu: 50m, memory: 256Mi }
     limits: { memory: 1Gi }
