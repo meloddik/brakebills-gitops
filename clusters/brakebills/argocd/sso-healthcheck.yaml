@@ -1,0 +1,132 @@
+# Self-healing SSO healthcheck for argocd-server.
+#
+# Background: argocd-server occasionally initializes its in-memory OIDC
+# provider with an empty issuer string after a config reload, leaving
+# /auth/login to return HTTP 500 with 'failed to query provider ""'.
+# Pods stay "Ready" because there is no probe that detects this, so HA
+# alone doesn't hide the issue — traffic round-robins into the bad pod.
+# The only known recovery is a pod restart.
+#
+# This CronJob runs every 5 minutes, probes /auth/login against the
+# in-cluster Service, and kubectl-patches the argocd-server Deployment
+# to trigger a rolling restart when it sees the bug. All via curl +
+# ServiceAccount token against the Kubernetes API — no kubectl binary
+# needed, no ingress dependency, no DNS dependency.
+#
+# Scope is locked down to get/patch of ONE deployment in ONE namespace.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-sso-healthcheck
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-sso-healthcheck
+  namespace: argocd
+rules:
+  # Patch the Deployment's podTemplate annotation to trigger a rollout.
+  # Scoped to the single argocd-server Deployment.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["argocd-server"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-sso-healthcheck
+  namespace: argocd
+subjects:
+  - kind: ServiceAccount
+    name: argocd-sso-healthcheck
+    namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-sso-healthcheck
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: argocd-sso-healthcheck
+  namespace: argocd
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: argocd-sso-healthcheck
+          restartPolicy: Never
+          containers:
+            - name: probe
+              image: curlimages/curl:8.11.1
+              resources:
+                requests: { cpu: 10m, memory: 16Mi }
+                limits:   { memory: 64Mi }
+              env:
+                - name: ARGOCD_URL
+                  value: "http://argocd-server.argocd.svc.cluster.local/auth/login?return_url=https%3A%2F%2Fargocd.brakebills.io%2Fapplications"
+                - name: DEPLOY_URL
+                  value: "https://kubernetes.default.svc/apis/apps/v1/namespaces/argocd/deployments/argocd-server"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -u
+                  TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+                  CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+                  # Probe /auth/login. Expect 303 redirect to the IdP.
+                  STATUS=$(curl -sk -o /tmp/body -w '%{http_code}' --max-time 10 "$ARGOCD_URL" || echo "000")
+                  echo "argocd /auth/login => HTTP ${STATUS}"
+
+                  if [ "$STATUS" = "303" ]; then
+                    echo "SSO OK"
+                    exit 0
+                  fi
+
+                  # Only auto-heal the exact 'stuck empty OIDC provider' signature.
+                  # Any other failure (503 from upstream, 404, etc.) is not this bug;
+                  # exit 1 so the Job is recorded as failed and visible in 'kubectl
+                  # get jobs' but we don't restart a healthy argocd-server pointlessly.
+                  if ! grep -q 'failed to query provider ""' /tmp/body 2>/dev/null; then
+                    echo "Non-stuck-OIDC failure — leaving argocd-server alone. Body:"
+                    head -c 400 /tmp/body
+                    exit 1
+                  fi
+
+                  echo "Detected stuck-empty-OIDC state. Triggering rollout restart of argocd-server."
+                  NOW=$(date -u +%FT%TZ)
+                  PATCH=$(printf '{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}' "$NOW")
+                  curl -sf \
+                    -X PATCH \
+                    -H "Authorization: Bearer ${TOKEN}" \
+                    -H "Content-Type: application/strategic-merge-patch+json" \
+                    --cacert "$CA" \
+                    --max-time 15 \
+                    --data "$PATCH" \
+                    "$DEPLOY_URL" > /dev/null
+                  echo "Rollout restart triggered at ${NOW}."
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 65532
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
